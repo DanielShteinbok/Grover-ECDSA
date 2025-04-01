@@ -20,6 +20,7 @@ from qiskit.circuit.library import QFT
 
 from qiskit.quantum_info import Statevector
 from qiskit.visualization import plot_bloch_multivector
+from Shor_Normal_QFT import *
 
 # need 7 bits to represent 0-127 for the part we throw away
 m = 7

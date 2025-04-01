@@ -1,5 +1,8 @@
 from qiskit import QuantumCircuit
 
+def uf_oracle(m, Q, curve, G, n):
+    pass
+
 def generate_forger_circuit(m, Q, curve, G, n, uf_oracle, iterations=1):
     """
     Generates a quantum circuit for the Grover forger algorithm.
