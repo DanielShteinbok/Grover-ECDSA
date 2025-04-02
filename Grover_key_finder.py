@@ -41,7 +41,7 @@ def add_modp(p):
     circuit.compose(QFT(p.bit_length() + 1), [*range(p.bit_length(), 2*p.bit_length()+1)])
     # do the inverse addition of a constant, which is subtraction
     # this is controlled by the last bit, which is the result of the comparator
-    cphiADD(circuit, [*range(p.bit_length(), 2*p.bit_length()+1)], [2*p.bit_length()+1], p, p.bit_length()+1, inv=1)
+    cphiADDmodN(circuit, [*range(p.bit_length(), 2*p.bit_length()+1)], [2*p.bit_length()+1], p, p.bit_length()+1, inv=1)
     circuit.compose(QFT(p.bit_length() + 1, inverse=True), [*range(p.bit_length(), 2*p.bit_length()+1)])
 
     return circuit
@@ -75,6 +75,30 @@ def montgomery_modular_mult(p, R=None):
 
     return circuit
 
+def add_point(G, curve=Curve(a=0, b=7, p=13), k_bits=None):
+    qc = QuantumCircuit(4*k_bits + 3)
+
+    # identify neutral element
+    qc.x(range(2*k_bits))
+    qc.mcx(range(2*k_bits), 2*k_bits)
+    qc.x(range(2*k_bits))
+    # now, qubit 2*k_bits is 1 only if the input is the neutral element
+
+    # iterate over the bits of the proposed d
+    for bit in G.x.bit_length():
+        if  (G.x >> bit) & 1:
+            qc.cx([2*k_bits], bit)
+    for bit in G.y.bit_length():
+        if  (G.y >> bit) & 1:
+            qc.cx([2*k_bits], k_bits + bit)
+
+    # if not zero, need to do the full addition thing
+    # first, subtract. Addition is commutative, we can just reverse stuff
+    qc.compose(QFT(k_bits), [*range(k_bits)])
+    # do the inverse addition of a constant, which is subtraction
+
+    # then, calculate the x and y using montgomery_modular_mult and add_modp
+
 
 # def uf_oracle(m, Q, curve, G, n):
 def uf_oracle(Q, G, curve=Curve(a=0, b=7, p=13), k_bits=None):
@@ -102,7 +126,22 @@ def uf_oracle(Q, G, curve=Curve(a=0, b=7, p=13), k_bits=None):
     # TODO: create a circuit
     # for each qubit in the circuit, add the appropriate power of G
     # check whether the result is equal to Q, do a multi-controlled-x across all bits to target the bottom, target qubit
-    # qc = QuantumCircuit(3*k_bits + 3)
+    qc = QuantumCircuit(4*k_bits + 3)
+
+    # identify neutral element
+    qc.x(range(k_bits, 3*k_bits))
+    qc.mcx(range(k_bits, 3*k_bits), 4*k_bits)
+    qc.x(range(k_bits, 3*k_bits))
+    # now, qubit 4*k_bits is 1 only if the input is the neutral element
+
+    # iterate over the bits of the proposed d
+    for i in k_bits:
+        for bit in G_powers_array[i].x.bit_length():
+            if  (G_powers_array[i].x >> bit) & 1:
+                qc.mcx([i, 4*k_bits], k_bits + bit)
+        for bit in G_powers_array[i].y.bit_length():
+            if  (G_powers_array[i].y >> bit) & 1:
+                qc.mcx([i, 4*k_bits], 2*k_bits + bit)
 
 
 
