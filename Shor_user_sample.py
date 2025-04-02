@@ -67,3 +67,4 @@ job_sim = sampler.run([shor_circuit] , shots=None)
 quasi_dists = job_sim.result().quasi_dists[0].binary_probabilities()
 
 plot_histogram(quasi_dists)
+plt.show()

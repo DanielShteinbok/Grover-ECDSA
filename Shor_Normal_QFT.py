@@ -146,6 +146,22 @@ def ccphiADDmodN(circuit, q, ctl1, ctl2, aux, a, N, n):
     create_QFT(circuit,q,n,0)
     ccphiADD(circuit, q, ctl1, ctl2, a, n, 0)
 
+def cphiADDmodN(circuit, q, ctl1, aux, a, N, n):
+    cphiADD(circuit, q, ctl1, a, n, 0)
+    phiADD(circuit, q, N, n, 1)
+    create_inverse_QFT(circuit, q, n, 0)
+    circuit.cx(q[n-1],aux)
+    create_QFT(circuit,q,n,0)
+    cphiADD(circuit, q, aux, N, n, 0)
+    
+    cphiADD(circuit, q, ctl1, a, n, 1)
+    create_inverse_QFT(circuit, q, n, 0)
+    circuit.x(q[n-1])
+    circuit.cx(q[n-1], aux)
+    circuit.x(q[n-1])
+    create_QFT(circuit,q,n,0)
+    cphiADD(circuit, q, ctl1, a, n, 0)
+
 """Circuit that implements the inverse of doubly controlled modular addition by a"""
 def ccphiADDmodN_inv(circuit, q, ctl1, ctl2, aux, a, N, n):
     ccphiADD(circuit, q, ctl1, ctl2, a, n, 1)
@@ -162,6 +178,21 @@ def ccphiADDmodN_inv(circuit, q, ctl1, ctl2, aux, a, N, n):
     phiADD(circuit, q, N, n, 0)
     ccphiADD(circuit, q, ctl1, ctl2, a, n, 1)
 
+def cphiADDmodN_inv(circuit, q, ctl1, aux, a, N, n):
+    cphiADD(circuit, q, ctl1, a, n, 1)
+    create_inverse_QFT(circuit, q, n, 0)
+    circuit.x(q[n-1])
+    circuit.cx(q[n-1],aux)
+    circuit.x(q[n-1])
+    create_QFT(circuit, q, n, 0)
+    cphiADD(circuit, q, ctl1, a, n, 0)
+    cphiADD(circuit, q, aux, N, n, 1)
+    create_inverse_QFT(circuit, q, n, 0)
+    circuit.cx(q[n-1], aux)
+    create_QFT(circuit, q, n, 0)
+    phiADD(circuit, q, N, n, 0)
+    cphiADD(circuit, q, ctl1, a, n, 1)
+
 """Circuit that implements single controlled modular multiplication by a"""
 def cMULTmodN(circuit, ctl, q, aux, a, N, n):
     create_QFT(circuit,aux,n+1,0)
@@ -177,6 +208,29 @@ def cMULTmodN(circuit, ctl, q, aux, a, N, n):
     i = n-1
     while i >= 0:
         ccphiADDmodN_inv(circuit, aux, q[i], ctl, aux[n+1], math.pow(2,i)*a_inv % N, N, n+1)
+        # ccphiADDmodN_inv(circuit, aux, q[i], ctl, aux[n+1], np.pow(2,i)*a_inv % N, N, n+1)
+        i -= 1
+    create_inverse_QFT(circuit, aux, n+1, 0)
+
+
+"""Circuit that implements single modular multiplication by a"""
+def MULTmodN(circuit, q, aux, a, N, n):
+    create_QFT(circuit,aux,n+1,0)
+    for i in range(0, n):
+        # ccphiADDmodN(circuit, aux, q[i], ctl, aux[n+1], (2**i)*a % N, N, n+1)
+        cphiADDmodN(circuit, aux, q[i], aux[n+1], (2**i)*a % N, N, n+1)
+    create_inverse_QFT(circuit, aux, n+1, 0)
+
+    for i in range(0, n):
+        # circuit.cswap(ctl,q[i],aux[i])
+        circuit.swap(q[i],aux[i])
+
+    a_inv = modinv(a, N)
+    create_QFT(circuit, aux, n+1, 0)
+    i = n-1
+    while i >= 0:
+        # ccphiADDmodN_inv(circuit, aux, q[i], ctl, aux[n+1], math.pow(2,i)*a_inv % N, N, n+1)
+        cphiADDmodN_inv(circuit, aux, q[i], aux[n+1], pow(2,i)*a_inv % N, N, n+1)
         # ccphiADDmodN_inv(circuit, aux, q[i], ctl, aux[n+1], np.pow(2,i)*a_inv % N, N, n+1)
         i -= 1
     create_inverse_QFT(circuit, aux, n+1, 0)
