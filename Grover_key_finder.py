@@ -4,11 +4,11 @@ from Shor_Normal_QFT import *
 from PyECCArithmetic import *
 # import math
 
-class Curve:
-    def __init__(self, a, b, p):
-        self.a = a
-        self.b = b
-        self.p = p
+# class Curve:
+#     def __init__(self, a, b, p):
+#         self.a = a
+#         self.b = b
+#         self.p = p
 
 def add_modp(p):
     """
@@ -91,17 +91,54 @@ def uf_oracle(Q, G, curve=Curve(a=0, b=7, p=13), k_bits=None):
     # we have 3 integers: k, d[0], d[1] 
     # where d[0] and d[1] are the x and y coordinates of the point on the curve
     # circuit = QuantumCircuit(3*k_bits + 1)
+    G_point = Point(*G, curve)
+    Q_point = Point(*Q, curve)
     G_powers_array = []
     for i in range(k_bits):
         pass
         # TODO: calculate the multiples of G*pow(2, i)
+        G_powers_array.append(pow(2, i)*G_point)
     
-    # create a circuit
+    # TODO: create a circuit
     # for each qubit in the circuit, add the appropriate power of G
     # check whether the result is equal to Q, do a multi-controlled-x across all bits to target the bottom, target qubit
+    # qc = QuantumCircuit(3*k_bits + 3)
+
+
+
+def test_uf_oracle(Q, G, curve=Curve(a=0, b=7, p=13), k_bits=None):
+    if k_bits is None:
+        k_bits = int(curve.p).bit_length()
+
+    # to test, don't do any fancy quantum arithmetic
+    # instead, pre-compute the right answer and check against it
+    c = Curve(0, 7, 13)
+
+    # find the right answer by guess-and-check
+    correct_d = 0
+    g_point = Point(*G, curve=curve)
+    q_point = Point(*Q, curve=curve)
+    point = Point(*G, curve=curve)
+    for i in range(1, curve.p+1):
+        if point == q_point:
+            correct_d = i
+            break
+        else:
+            point += g_point
+
+    # print(f"Correct d: {correct_d}")
+    
+    # check if d is correct
+    qc = QuantumCircuit(k_bits + 1)
+    for bit in range(k_bits):
+        if ((correct_d >> bit) & 1) == 0:
+            qc.x(bit)
+    
+    qc.mcx([*range(k_bits)], k_bits)
+    return qc
 
     
-def generate_key_finder_circuit(Q, curve, G, n, uf_oracle, iterations=1):
+def generate_key_finder_circuit(Q, curve, G, uf_oracle=test_uf_oracle, iterations=1):
     """
     Generates a quantum circuit for the Grover forger algorithm.
     
@@ -118,28 +155,61 @@ def generate_key_finder_circuit(Q, curve, G, n, uf_oracle, iterations=1):
     -------
         circuit: A QuantumCircuit object representing the Grover forger circuit.
     """
-    N = int(n).bit_length()  # Number of bits needed to represent n
+    N = int(curve.p).bit_length()  # Number of bits needed to represent n
     # N is significatn because it tells us how many bits we need to represent r and s which are both mod n
     # we need 2*N bits to represent both r and s
     
-    circuit = QuantumCircuit(2*N + 1, 2*N)
+    # circuit = QuantumCircuit(2*N + 1, 2*N)
+    circuit = QuantumCircuit(N + 1, N)
 
-    circuit.x(N)
-    circuit.h(range(2*N))
+    # circuit.x(N)
+    # # circuit.h(range(2*N))
+    # circuit.h(range(N))
+
+    # for i in range(iterations):
+    #     # circuit.append(uf_oracle(Q, G, curve), range(2*N+1))
+    #     circuit.append(uf_oracle(Q, G, curve), range(N+1))
+    #     # circuit.h(range(2*N))
+    #     # circuit.x(range(2*N))
+    #     circuit.h(range(N))
+    #     circuit.x(range(N))
+
+    #     # no multi-controlled Z available, so we use multi-controlled X
+    #     # and we use the fact that Z = HXH
+    #     # circuit.h(2*N-1)
+    #     circuit.h(N-1)
+    #     # circuit.mcx(list(range(2*N-1)), 2*N-1)
+    #     circuit.mcx(list(range(N-1)), N-1)
+    #     # circuit.h(2*N-1)
+    #     circuit.h(N-1)
+
+    #     # circuit.x(range(2*N))
+    #     # circuit.h(range(2*N))
+    #     circuit.x(range(N))
+    #     circuit.h(range(N))
+
+    # # circuit.measure(range(2*N), range(2*N))
+    # circuit.measure(range(N), range(N))
+    # return circuit
+    qc = QuantumCircuit(N+1, N)
+
+    # last qubit should be initialized as 1, then Hadamarded
+    qc.x(N)
+    qc.h(range(N))
 
     for i in range(iterations):
-        circuit.append(uf_oracle(), range(2*N+1))
-        circuit.h(range(2*N))
-        circuit.x(range(2*N))
+        qc.append(uf_oracle(Q, G, curve), range(N+1))
+        qc.h(range(N))
+        qc.x(range(N))
 
         # no multi-controlled Z available, so we use multi-controlled X
         # and we use the fact that Z = HXH
-        circuit.h(2*N-1)
-        circuit.mcx(list(range(2*N-1)), 2*N-1)
-        circuit.h(2*N-1)
+        qc.h(N-1)
+        qc.mcx(list(range(N-1)), N-1)
+        qc.h(N-1)
 
-        circuit.x(range(2*N))
-        circuit.h(range(2*N))
+        qc.x(range(N))
+        qc.h(range(N))
 
-    circuit.measure(range(2*N), range(2*N))
-    return circuit
+    qc.measure(range(N), range(N))
+    return qc
